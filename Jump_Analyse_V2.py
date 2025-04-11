@@ -103,3 +103,4 @@ if uploaded_video:
 
         os.remove(pdf_path)
         os.remove(video_path)
+
