@@ -8,6 +8,7 @@ from fpdf import FPDF
 import datetime
 from PIL import Image
 from functools import lru_cache
+import subprocess
 
 st.set_page_config(page_title="Analyse Saut v6 - Amélioré", layout="centered")
 st.title("🦘 Analyse par temps de vol (MyJump2-like)")
@@ -22,8 +23,27 @@ uploaded_video = st.file_uploader("📹 Upload ta vidéo (MP4)", type=["mp4"])
 if uploaded_video:
     tfile = tempfile.NamedTemporaryFile(delete=False, suffix=".mp4")
     tfile.write(uploaded_video.read())
-    video_path = tfile.name
-    st.video(video_path)
+    original_video_path = tfile.name
+
+    # Conversion vers résolution plus légère (720p)
+    resized_path = original_video_path.replace(".mp4", "_resized.mp4")
+    ffmpeg_cmd = [
+        "ffmpeg",
+        "-i", original_video_path,
+        "-vf", "scale=1280:720",
+        "-c:v", "libx264",
+        "-preset", "ultrafast",
+        "-crf", "28",
+        "-y",
+        resized_path
+    ]
+    try:
+        subprocess.run(ffmpeg_cmd, check=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+    except subprocess.CalledProcessError:
+        st.error("Erreur lors de la conversion de la vidéo. Assurez-vous que ffmpeg est disponible.")
+        st.stop()
+
+    st.video(resized_path)
 
     @st.cache_resource
     def load_video_metadata(path):
@@ -32,7 +52,7 @@ if uploaded_video:
         total_frames = reader.count_frames()
         return reader, fps, total_frames
 
-    reader, fps, total_frames = load_video_metadata(video_path)
+    reader, fps, total_frames = load_video_metadata(resized_path)
 
     st.markdown("🎯 Sélectionne les **images clés** du saut")
     col1, col2 = st.columns(2)
@@ -100,4 +120,5 @@ if uploaded_video:
             st.download_button("📄 Télécharger le rapport PDF", data=f, file_name=f"{prenom}_saut.pdf")
 
         os.remove(pdf_path)
-        os.remove(video_path)
+        os.remove(original_video_path)
+        os.remove(resized_path)
