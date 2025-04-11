@@ -20,8 +20,6 @@ poids_kg = st.number_input("Poids (kg)", min_value=30, max_value=200, value=100)
 uploaded_video = st.file_uploader("📹 Upload ta vidéo (MP4)", type=["mp4"])
 
 if uploaded_video:
-    st.warning("📹 Ta vidéo doit être en résolution ≤ 1280x720 (HD) pour éviter les erreurs.")
-
     tfile = tempfile.NamedTemporaryFile(delete=False, suffix=".mp4")
     tfile.write(uploaded_video.read())
     video_path = tfile.name
@@ -29,10 +27,15 @@ if uploaded_video:
 
     @st.cache_resource
     def load_video_metadata(path):
-        reader = imageio.get_reader(path)
-        fps = reader.get_meta_data()["fps"]
-        total_frames = reader.count_frames()
-        return reader, fps, total_frames
+        try:
+            reader = imageio.get_reader(path)
+            meta = reader.get_meta_data()
+            fps = meta.get("fps", 30)
+            total_frames = reader.count_frames()
+            return reader, fps, total_frames
+        except Exception as e:
+            st.error(f"Erreur de lecture de la vidéo : {e}")
+            st.stop()
 
     reader, fps, total_frames = load_video_metadata(video_path)
 
@@ -103,4 +106,3 @@ if uploaded_video:
 
         os.remove(pdf_path)
         os.remove(video_path)
-
