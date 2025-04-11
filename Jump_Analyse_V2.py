@@ -1,18 +1,15 @@
 import streamlit as st
 import tempfile
 import os
-import cv2
-from ultralytics import YOLO
+from moviepy.editor import VideoFileClip
 import numpy as np
 import matplotlib.pyplot as plt
 from fpdf import FPDF
 import datetime
 from PIL import Image
 
-# ... imports et config Streamlit identiques ...
-
 st.set_page_config(page_title="Analyse Saut v6 - Amélioré", layout="centered")
-st.title("🦘 Analyse par temps de vol (style MyJump2)")
+st.title("🦘 Analyse par temps de vol (MyJump2-like)")
 
 # Formulaire
 prenom = st.text_input("Prénom")
@@ -27,9 +24,9 @@ if uploaded_video:
     video_path = tfile.name
     st.video(video_path)
 
-    cap = cv2.VideoCapture(video_path)
-    total_frames = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
-    fps = cap.get(cv2.CAP_PROP_FPS)
+    clip = VideoFileClip(video_path)
+    fps = clip.fps
+    total_frames = int(clip.duration * fps)
 
     st.markdown("🎯 Sélectionne les **images clés** du saut")
     col1, col2 = st.columns(2)
@@ -38,28 +35,24 @@ if uploaded_video:
     with col2:
         frame_atterrissage = st.number_input("Image atterrissage", min_value=0, max_value=total_frames - 1, value=total_frames - 1, step=1)
 
-    def afficher_frame(video_path, frame_num):
-        cap = cv2.VideoCapture(video_path)
-        cap.set(cv2.CAP_PROP_POS_FRAMES, frame_num)
-        ret, frame = cap.read()
-        cap.release()
-        if ret:
-            frame_rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
-            img = Image.fromarray(frame_rgb)
-            return img
-        return None
+    def afficher_frame(clip, frame_num):
+        try:
+            img = clip.get_frame(frame_num / clip.fps)
+            return Image.fromarray(img)
+        except:
+            return None
 
     st.subheader("🖼️ Prévisualisation des images sélectionnées")
     col3, col4 = st.columns(2)
     with col3:
         st.markdown(f"**Décollage (image {frame_decollage})**")
-        img1 = afficher_frame(video_path, frame_decollage)
+        img1 = afficher_frame(clip, frame_decollage)
         if img1:
             st.image(img1, caption="Décollage")
 
     with col4:
         st.markdown(f"**Atterrissage (image {frame_atterrissage})**")
-        img2 = afficher_frame(video_path, frame_atterrissage)
+        img2 = afficher_frame(clip, frame_atterrissage)
         if img2:
             st.image(img2, caption="Atterrissage")
 
@@ -101,4 +94,3 @@ if uploaded_video:
 
         os.remove(pdf_path)
         os.remove(video_path)
-
