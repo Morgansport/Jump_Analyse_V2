@@ -7,6 +7,7 @@ import matplotlib.pyplot as plt
 from fpdf import FPDF
 import datetime
 from PIL import Image
+from functools import lru_cache
 
 st.set_page_config(page_title="Analyse Saut v6 - Amélioré", layout="centered")
 st.title("🦘 Analyse par temps de vol (MyJump2-like)")
@@ -24,9 +25,14 @@ if uploaded_video:
     video_path = tfile.name
     st.video(video_path)
 
-    reader = imageio.get_reader(video_path)
-    fps = reader.get_meta_data()["fps"]
-    total_frames = reader.count_frames()
+    @st.cache_resource
+    def load_video_metadata(path):
+        reader = imageio.get_reader(path)
+        fps = reader.get_meta_data()["fps"]
+        total_frames = reader.count_frames()
+        return reader, fps, total_frames
+
+    reader, fps, total_frames = load_video_metadata(video_path)
 
     st.markdown("🎯 Sélectionne les **images clés** du saut")
     col1, col2 = st.columns(2)
@@ -35,7 +41,8 @@ if uploaded_video:
     with col2:
         frame_atterrissage = st.number_input("Image atterrissage", min_value=0, max_value=total_frames - 1, value=total_frames - 1, step=1)
 
-    def afficher_frame(reader, frame_num):
+    @lru_cache(maxsize=10)
+    def afficher_frame(frame_num):
         try:
             frame = reader.get_data(frame_num)
             return Image.fromarray(frame)
@@ -46,13 +53,13 @@ if uploaded_video:
     col3, col4 = st.columns(2)
     with col3:
         st.markdown(f"**Décollage (image {frame_decollage})**")
-        img1 = afficher_frame(reader, frame_decollage)
+        img1 = afficher_frame(frame_decollage)
         if img1:
             st.image(img1, caption="Décollage")
 
     with col4:
         st.markdown(f"**Atterrissage (image {frame_atterrissage})**")
-        img2 = afficher_frame(reader, frame_atterrissage)
+        img2 = afficher_frame(frame_atterrissage)
         if img2:
             st.image(img2, caption="Atterrissage")
 
