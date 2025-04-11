@@ -1,7 +1,7 @@
 import streamlit as st
 import tempfile
 import os
-from moviepy.editor import VideoFileClip
+import imageio
 import numpy as np
 import matplotlib.pyplot as plt
 from fpdf import FPDF
@@ -24,9 +24,9 @@ if uploaded_video:
     video_path = tfile.name
     st.video(video_path)
 
-    clip = VideoFileClip(video_path)
-    fps = clip.fps
-    total_frames = int(clip.duration * fps)
+    reader = imageio.get_reader(video_path)
+    fps = reader.get_meta_data()["fps"]
+    total_frames = reader.count_frames()
 
     st.markdown("🎯 Sélectionne les **images clés** du saut")
     col1, col2 = st.columns(2)
@@ -35,10 +35,10 @@ if uploaded_video:
     with col2:
         frame_atterrissage = st.number_input("Image atterrissage", min_value=0, max_value=total_frames - 1, value=total_frames - 1, step=1)
 
-    def afficher_frame(clip, frame_num):
+    def afficher_frame(reader, frame_num):
         try:
-            img = clip.get_frame(frame_num / clip.fps)
-            return Image.fromarray(img)
+            frame = reader.get_data(frame_num)
+            return Image.fromarray(frame)
         except:
             return None
 
@@ -46,13 +46,13 @@ if uploaded_video:
     col3, col4 = st.columns(2)
     with col3:
         st.markdown(f"**Décollage (image {frame_decollage})**")
-        img1 = afficher_frame(clip, frame_decollage)
+        img1 = afficher_frame(reader, frame_decollage)
         if img1:
             st.image(img1, caption="Décollage")
 
     with col4:
         st.markdown(f"**Atterrissage (image {frame_atterrissage})**")
-        img2 = afficher_frame(clip, frame_atterrissage)
+        img2 = afficher_frame(reader, frame_atterrissage)
         if img2:
             st.image(img2, caption="Atterrissage")
 
